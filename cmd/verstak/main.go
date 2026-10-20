@@ -1,4 +1,4 @@
-// Command verstak works one ticket: verstak -target persona-agent tickets/rockets.md
+// Command verstak works one ticket: verstak -target verstak tickets/own-tests.md
 // ("-" reads the ticket from stdin). It prints where the report is; the exit code is 0 only
 // when the fix is done and committed on its branch.
 package main

@@ -8,10 +8,11 @@
     "network": false
   },
   "targets": {
-    "persona-agent": {
-      "path": "F:/persona-agent",
+    "verstak": {
+      "path": "F:/verstak",
       "base": "main",
       "checks": ["go vet ./...", "go test ./..."]
     }
-  }
+  },
+  "deny": ["F:/persona-agent", "F:/unionclef"]
 }

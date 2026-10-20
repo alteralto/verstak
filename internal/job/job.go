@@ -27,6 +27,7 @@ type Config struct {
 	Rounds  int               `json:"rounds"` // agent rounds per ticket, the first one included
 	Codex   CodexConfig       `json:"codex"`
 	Targets map[string]Target `json:"targets"`
+	Deny    []string          `json:"deny"` // repos the workbench never clones, whatever the targets say
 }
 
 type CodexConfig struct {
@@ -89,6 +90,9 @@ func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runne
 	tg, ok := cfg.Targets[name]
 	if !ok {
 		return Report{}, fmt.Errorf("unknown target %q", name)
+	}
+	if d := denied(cfg.Deny, tg.Path); d != "" {
+		return Report{}, fmt.Errorf("target %q is %s, which is on the deny list", name, d)
 	}
 	rep := Report{Ticket: tk, Target: name, Dir: filepath.Join(cfg.Work, tk.ID), Branch: "verstak/" + tk.ID}
 
@@ -170,7 +174,30 @@ func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runne
 	return rep, os.WriteFile(ws.Own("REPORT.md"), []byte(rep.Markdown()), 0o644)
 }
 
-// setUp puts the instructions, the persona and the ticket into the agent's folder.
+// denied is the entry of deny that path is, or lies inside; "" when none. Paths compare
+// cleaned and, as on Windows, case-insensitively.
+func denied(deny []string, path string) string {
+	p := norm(path)
+	for _, d := range deny {
+		n := norm(d)
+		if n != "" && (p == n || strings.HasPrefix(p, n+"/")) {
+			return d
+		}
+	}
+	return ""
+}
+
+func norm(p string) string {
+	if p == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	return strings.ToLower(strings.TrimRight(filepath.ToSlash(filepath.Clean(p)), "/"))
+}
+
+// setUp puts the instructions and the ticket into the agent's folder.
 func setUp(ws *workspace.Workspace, tk ticket.Ticket) error {
 	err := fs.WalkDir(workplace.Files, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {

@@ -24,7 +24,7 @@ func (f *fake) Run(_ context.Context, j runner.Job) (runner.Result, error) {
 	if i < len(f.rounds) && f.rounds[i] != nil {
 		f.rounds[i](j.Dir)
 	}
-	answer := "## Summary\nround done\n\n## Pyhtun says\nОх, готово."
+	answer := "## Summary\nround done\n\n## Open questions\nNone."
 	os.WriteFile(j.Last, []byte(answer), 0o644)
 	return runner.Result{Session: "s1", Summary: answer, Usage: runner.Usage{Input: 100, Cached: 60, Output: 10}}, nil
 }
@@ -95,13 +95,13 @@ func TestFixedInOneRound(t *testing.T) {
 	if s := gitIn(t, src, "status", "--short"); s != "?? wip.txt" {
 		t.Errorf("target status %q", s)
 	}
-	for _, f := range []string{"INSTRUCTIONS.md", "persona.md", "TICKET.md", "REPORT.md", "trace.jsonl"} {
+	for _, f := range []string{"INSTRUCTIONS.md", "TICKET.md", "REPORT.md", "trace.jsonl"} {
 		if _, err := os.Stat(filepath.Join(rep.Dir, ".verstak", f)); err != nil {
 			t.Errorf("no .verstak/%s", f)
 		}
 	}
 	report, _ := os.ReadFile(filepath.Join(rep.Dir, ".verstak", "REPORT.md"))
-	if !strings.Contains(string(report), "git fetch") || !strings.Contains(string(report), "Ох, готово.") {
+	if !strings.Contains(string(report), "git fetch") || !strings.Contains(string(report), "## Open questions") {
 		t.Errorf("report:\n%s", report)
 	}
 }
@@ -181,4 +181,26 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 	return strings.TrimSpace(string(out))
+}
+
+func TestDenyListWins(t *testing.T) {
+	src := target(t)
+	for _, deny := range []string{src, strings.ToUpper(src), filepath.Dir(src) + "/"} {
+		cfg := config(t, src, 1)
+		cfg.Deny = []string{"F:/somewhere-else", deny}
+		ag := &fake{rounds: []func(string){fix}}
+		if _, err := Run(context.Background(), cfg, "sample", tk, ag); err == nil {
+			t.Errorf("deny %q: the target was worked on", deny)
+		}
+		if len(ag.prompts) != 0 {
+			t.Errorf("deny %q: the agent ran", deny)
+		}
+		if entries, _ := os.ReadDir(cfg.Work); len(entries) != 0 {
+			t.Errorf("deny %q: a clone was made", deny)
+		}
+	}
+	// A sibling whose name only starts the same is not inside.
+	if d := denied([]string{src}, src+"-other"); d != "" {
+		t.Errorf("%s-other counted as inside %s", src, d)
+	}
 }

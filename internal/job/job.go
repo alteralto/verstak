@@ -28,6 +28,20 @@ type Config struct {
 	Codex   CodexConfig       `json:"codex"`
 	Targets map[string]Target `json:"targets"`
 	Deny    []string          `json:"deny"` // repos the workbench never clones, whatever the targets say
+	Docker  DockerConfig      `json:"docker"`
+}
+
+// DockerConfig is the agent's container (package sandbox).
+type DockerConfig struct {
+	Image   string   `json:"image"`
+	Network string   `json:"network"` // internal network without a route outside
+	Egress  string   `json:"egress"`  // name of the proxy container, the only way out
+	Allow   []string `json:"allow"`   // host names the proxy lets through
+	Memory  string   `json:"memory"`
+	CPUs    string   `json:"cpus"`
+	Pids    int      `json:"pids"`
+	Timeout string   `json:"timeout"` // a ticket's limit, e.g. "45m"
+	Auth    string   `json:"auth"`    // the agent's Codex login on the host (its own account)
 }
 
 type CodexConfig struct {

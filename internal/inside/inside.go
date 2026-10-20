@@ -42,8 +42,8 @@ type Spec struct {
 }
 
 // Run works the ticket from in, in work, and leaves the results in out. codexHome receives the
-// agent's login (the runner reads it from there).
-func Run(ctx context.Context, in, work, out, codexHome string, r runner.Runner) (job.Report, error) {
+// agent's login (the runner reads it from there); agent makes the runner for the spec's model.
+func Run(ctx context.Context, in, work, out, codexHome string, agent func(Spec) runner.Runner) (job.Report, error) {
 	var spec Spec
 	b, err := os.ReadFile(filepath.Join(in, SpecFile))
 	if err != nil {
@@ -70,7 +70,7 @@ func Run(ctx context.Context, in, work, out, codexHome string, r runner.Runner) 
 			Path: filepath.Join(in, BundleFile), Base: spec.Base, Checks: spec.Checks, Author: spec.Author,
 		}},
 	}
-	rep, err := job.Run(ctx, cfg, "target", spec.Ticket, r)
+	rep, err := job.Run(ctx, cfg, "target", spec.Ticket, agent(spec))
 	if err != nil {
 		os.WriteFile(filepath.Join(out, "error.txt"), []byte(err.Error()+"\n"), 0o644)
 		return rep, err

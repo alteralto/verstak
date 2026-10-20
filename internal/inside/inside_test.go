@@ -55,7 +55,7 @@ func handOver(t *testing.T) (in string) {
 
 func TestDoneLeavesABundle(t *testing.T) {
 	in, work, out, home := handOver(t), t.TempDir(), t.TempDir(), filepath.Join(t.TempDir(), "codex")
-	rep, err := inside.Run(context.Background(), in, work, out, home, agent{fix: true})
+	rep, err := inside.Run(context.Background(), in, work, out, home, func(inside.Spec) runner.Runner { return agent{fix: true} })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestDoneLeavesABundle(t *testing.T) {
 
 func TestRedLeavesAPatchNotABundle(t *testing.T) {
 	in, work, out := handOver(t), t.TempDir(), t.TempDir()
-	rep, err := inside.Run(context.Background(), in, work, out, "", agent{})
+	rep, err := inside.Run(context.Background(), in, work, out, "", func(inside.Spec) runner.Runner { return agent{} })
 	if err != nil {
 		t.Fatal(err)
 	}

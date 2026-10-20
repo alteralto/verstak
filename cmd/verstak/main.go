@@ -57,7 +57,7 @@ func main() {
 			func(s inside.Spec) runner.Runner {
 				// The container is the sandbox; codex's own would need privileges it does not have.
 				return runner.Codex{Bin: "codex", Model: s.Model, Effort: s.Effort, Network: true, Sandbox: "danger-full-access"}
-			})
+			}, os.Stdout)
 		if err != nil {
 			fail(err)
 		}

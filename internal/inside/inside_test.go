@@ -54,13 +54,17 @@ func handOver(t *testing.T) (in string) {
 }
 
 func TestDoneLeavesABundle(t *testing.T) {
+	var echo strings.Builder
 	in, work, out, home := handOver(t), t.TempDir(), t.TempDir(), filepath.Join(t.TempDir(), "codex")
-	rep, err := inside.Run(context.Background(), in, work, out, home, func(inside.Spec) runner.Runner { return agent{fix: true} })
+	rep, err := inside.Run(context.Background(), in, work, out, home, func(inside.Spec) runner.Runner { return agent{fix: true} }, &echo)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if rep.Status != job.Done {
 		t.Fatalf("status %s: %+v %s", rep.Status, rep.Checks, rep.Err)
+	}
+	if !strings.Contains(echo.String(), `"span":"checks"`) {
+		t.Errorf("the steps are not echoed as they happen:\n%s", echo.String())
 	}
 	for _, f := range []string{inside.ResultFile, "REPORT.md", inside.ReportJSON, "trace.jsonl", "agent.jsonl", "TICKET.md"} {
 		if _, err := os.Stat(filepath.Join(out, f)); err != nil {
@@ -88,7 +92,7 @@ func TestRedLeavesAPatchNotABundle(t *testing.T) {
 	in, work, out := handOver(t), t.TempDir(), t.TempDir()
 	os.Remove(filepath.Join(in, inside.AuthFile)) // and no login: codex still gets a home
 	home := filepath.Join(t.TempDir(), "codex")
-	rep, err := inside.Run(context.Background(), in, work, out, home, func(inside.Spec) runner.Runner { return agent{} })
+	rep, err := inside.Run(context.Background(), in, work, out, home, func(inside.Spec) runner.Runner { return agent{} }, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

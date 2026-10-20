@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -29,6 +30,9 @@ type Config struct {
 	Targets map[string]Target `json:"targets"`
 	Deny    []string          `json:"deny"` // repos the workbench never clones, whatever the targets say
 	Docker  DockerConfig      `json:"docker"`
+	// Echo gets the agent's events and the steps as they happen (the container's stdout, which
+	// the control panel follows); nil keeps them in the files only.
+	Echo io.Writer `json:"-"`
 }
 
 // DockerConfig is the agent's container (package sandbox).
@@ -122,7 +126,11 @@ func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runne
 		return rep, err
 	}
 	defer tf.Close()
-	tr := trace.New(tf)
+	var tw io.Writer = tf
+	if cfg.Echo != nil {
+		tw = io.MultiWriter(tf, cfg.Echo)
+	}
+	tr := trace.New(tw)
 	tr.Span("clone", t0, nil, "target", name, "base", ws.Base)
 	if err := setUp(ws, tk); err != nil {
 		return rep, err
@@ -132,6 +140,10 @@ func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runne
 		return rep, err
 	}
 	defer events.Close()
+	var log io.Writer = events
+	if cfg.Echo != nil {
+		log = io.MultiWriter(events, cfg.Echo)
+	}
 
 	// The agent's builds stay inside its clone: its sandbox writes nowhere else.
 	env := []string{
@@ -149,7 +161,7 @@ func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runne
 		rep.Rounds = round
 		t := time.Now()
 		res, err := r.Run(ctx, runner.Job{
-			Dir: ws.Path, Prompt: prompt, Session: session, Env: env, Log: events,
+			Dir: ws.Path, Prompt: prompt, Session: session, Env: env, Log: log,
 			Last: ws.Own(fmt.Sprintf("answer-%d.md", round)),
 		})
 		rep.Usage.Add(res.Usage)

@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,7 +44,8 @@ type Spec struct {
 
 // Run works the ticket from in, in work, and leaves the results in out. codexHome receives the
 // agent's login (the runner reads it from there); agent makes the runner for the spec's model.
-func Run(ctx context.Context, in, work, out, codexHome string, agent func(Spec) runner.Runner) (job.Report, error) {
+// echo, when set, gets the agent's events and the steps as they happen.
+func Run(ctx context.Context, in, work, out, codexHome string, agent func(Spec) runner.Runner, echo io.Writer) (job.Report, error) {
 	var spec Spec
 	b, err := os.ReadFile(filepath.Join(in, SpecFile))
 	if err != nil {
@@ -67,6 +69,7 @@ func Run(ctx context.Context, in, work, out, codexHome string, agent func(Spec) 
 		}
 	}
 	cfg := job.Config{
+		Echo:   echo,
 		Work:   work,
 		Rounds: max(spec.Rounds, 1),
 		Targets: map[string]job.Target{"target": {

@@ -204,3 +204,25 @@ func TestDenyListWins(t *testing.T) {
 		t.Errorf("%s-other counted as inside %s", src, d)
 	}
 }
+
+// The agent can write its clone's .git; a hook there must not run at our commit.
+func TestHooksInTheCloneDoNotRun(t *testing.T) {
+	src := target(t)
+	ag := &fake{rounds: []func(string){func(dir string) {
+		fix(dir)
+		hook := "#!/bin/sh\necho ran > \"$(git rev-parse --show-toplevel)/../hook-ran\"\nexit 1\n"
+		os.WriteFile(filepath.Join(dir, ".git", "hooks", "pre-commit"), []byte(hook), 0o755)
+		gitIn(t, dir, "config", "core.hooksPath", ".git/hooks") // and its own config points at it
+	}}}
+	cfg := config(t, src, 1)
+	rep, err := Run(context.Background(), cfg, "sample", tk, ag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Status != Done {
+		t.Fatalf("status %s (%s): the hook ran and blocked the commit", rep.Status, rep.Err)
+	}
+	if _, err := os.Stat(filepath.Join(cfg.Work, "hook-ran")); err == nil {
+		t.Fatal("the agent's pre-commit hook ran")
+	}
+}

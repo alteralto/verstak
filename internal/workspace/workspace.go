@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -106,8 +107,13 @@ func (w *Workspace) Commits(ctx context.Context) (string, error) {
 	return git(ctx, w.Path, "log", "--oneline", w.Base+"..HEAD")
 }
 
+// safe keeps the agent's clone from running anything at our git commands: its .git is the
+// agent's to write, and hooks or an fsmonitor there would run with our rights. Hooks come from
+// the null device, where no file can be.
+var safe = []string{"-c", "core.hooksPath=" + os.DevNull, "-c", "core.fsmonitor=false"}
+
 func git(ctx context.Context, dir string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := exec.CommandContext(ctx, "git", append(slices.Clone(safe), args...)...)
 	cmd.Dir = dir
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb

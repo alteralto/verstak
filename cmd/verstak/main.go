@@ -22,6 +22,7 @@ func main() {
 	cfgPath := flag.String("config", "verstak.json", "config file")
 	target := flag.String("target", "", "target repo, a key of targets in the config")
 	rounds := flag.Int("rounds", 0, "agent rounds, 0 = as in the config")
+	unsafeHost := flag.Bool("unsafe-host", false, "run the agent and its tests right on this machine (debugging only, see docs/security.md)")
 	flag.Parse()
 	if *target == "" || flag.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "usage: verstak -target <name> <ticket.md | ->")
@@ -49,6 +50,11 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+	if !*unsafeHost {
+		// The tests the agent writes run at our checks: on this machine they would run with the
+		// user's rights. Live runs wait for the Docker sandbox.
+		fail(fmt.Errorf("no isolated runner yet: live runs wait for the Docker sandbox (docs/security.md); -unsafe-host runs on this machine"))
+	}
 	ag := runner.Codex{Bin: cfg.Codex.Bin, Model: cfg.Codex.Model, Effort: cfg.Codex.Effort, Network: cfg.Codex.Network}
 	fmt.Printf("verstak: %s -> %s\n", tk.Title, filepath.Join(cfg.Work, tk.ID))
 	rep, err := job.Run(ctx, cfg, *target, tk, ag)

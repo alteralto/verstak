@@ -45,7 +45,7 @@ cp verstak.example.json verstak.json        # пути, модель, docker.aut
 # из него bin/codex, bin/codex-code-mode-host и codex-path/rg — в отдельную папку
 docker build --build-context codex=<эта папка> -t verstak-agent:latest -f docker/Dockerfile .
 go build -o bin/verstak.exe ./cmd/verstak
-bin/verstak.exe -probe                      # изоляция: 9 проверок изнутри контейнера
+bin/verstak.exe -probe                      # изоляция: 10 проверок изнутри контейнера
 bin/verstak.exe -target verstak tickets/example-own-tests.md
 ```
 

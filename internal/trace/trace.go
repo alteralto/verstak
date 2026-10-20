@@ -16,7 +16,10 @@ type Writer struct {
 	t0 time.Time
 }
 
-func New(w io.Writer) *Writer { return &Writer{w: w, t0: time.Now()} }
+func New(w io.Writer) *Writer { return NewAt(w, time.Now()) }
+
+// NewAt counts times from t0: a job's start, which comes before its trace file can exist.
+func NewAt(w io.Writer, t0 time.Time) *Writer { return &Writer{w: w, t0: t0} }
 
 // Span records a step that began at start and ends now. kv are extra fields, key then value.
 func (t *Writer) Span(name string, start time.Time, err error, kv ...any) {

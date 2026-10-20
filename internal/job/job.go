@@ -130,7 +130,7 @@ func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runne
 	if cfg.Echo != nil {
 		tw = io.MultiWriter(tf, cfg.Echo)
 	}
-	tr := trace.New(tw)
+	tr := trace.NewAt(tw, start)
 	tr.Span("clone", t0, nil, "target", name, "base", ws.Base)
 	if err := setUp(ws, tk); err != nil {
 		return rep, err

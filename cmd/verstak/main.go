@@ -13,8 +13,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/alteralto/verstak/internal/inside"
@@ -34,11 +36,21 @@ func main() {
 	in := flag.Bool("inside", false, "in the agent's container: work the handed-over ticket")
 	inProbe := flag.Bool("inside-probe", false, "in the agent's container: try what the sandbox must not allow")
 	egress := flag.String("egress", "", "with -inside-probe: the proxy's host:port")
+	gofmtCheck := flag.Bool("gofmt", false, "a check: fail when gofmt would change a .go file here")
 	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	switch {
+	case *gofmtCheck:
+		// gofmt -l lists the files it would change but exits 0 either way.
+		out, err := exec.Command("gofmt", "-l", ".").CombinedOutput()
+		fmt.Print(string(out))
+		if err != nil || len(strings.TrimSpace(string(out))) > 0 {
+			fmt.Println("not gofmt-ed: run gofmt -w on the files above")
+			os.Exit(1)
+		}
+		return
 	case *inProbe:
 		ok := true
 		for _, c := range probe.Run(*egress) {

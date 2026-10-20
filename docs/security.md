@@ -28,12 +28,13 @@ pass  no new privileges                        NoNewPrivs 1
 pass  root filesystem read-only                open /home/agent/probe-write: read-only file system
 pass  no block devices (disks, partitions)     []
 pass  no host drives, no Docker socket         []
+pass  go, gofmt and git in a login shell       /usr/local/go/bin/go /usr/local/go/bin/gofmt /usr/bin/git
 pass  no direct way out                        dial 1.1.1.1:443: connect: network is unreachable
 pass  proxy refuses other hosts                example.com: 403
 pass  proxy lets the model through             chatgpt.com: 200
 ```
 
-Тот же образ без флагов проваливает 7 проверок из 9, то есть проверка их действительно различает.
+Тот же образ без флагов проваливает 7 проверок из 9 (проверка инструментов добавлена позже), то есть проверка их действительно различает.
 Первый прогон тикета без логина: Codex дошёл до `api.openai.com` через прокси и получил 401,
 запросы к `github.com` (проверка обновлений) прокси отклонил. После прогона не остаётся ни
 контейнера, ни тома.

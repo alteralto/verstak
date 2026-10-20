@@ -1,6 +1,6 @@
 // Package probe checks the agent's container from the inside: what the agent could do if it
-// tried. Every check is an attempt at something the sandbox must not allow, except the last
-// one, which must work: the way to the model.
+// tried. Most checks are an attempt at something the sandbox must not allow; two must work:
+// the tools in the agent's shell and the way to the model.
 package probe
 
 import (
@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -55,6 +56,10 @@ func Run(egress string) []Check {
 		}
 	}
 	add("no host drives, no Docker socket", len(seen) == 0, "%v", seen)
+
+	// The agent's commands run in a login shell, which rebuilds PATH: the tools must survive it.
+	out, err := exec.Command("bash", "-lc", "command -v go && command -v gofmt && command -v git").CombinedOutput()
+	add("go, gofmt and git in a login shell", err == nil, "%s", strings.Join(strings.Fields(string(out)), " "))
 
 	c, err := net.DialTimeout("tcp", "1.1.1.1:443", 3*time.Second)
 	if c != nil {

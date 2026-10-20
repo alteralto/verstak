@@ -11,7 +11,7 @@
     "verstak": {
       "path": "F:/verstak",
       "base": "main",
-      "checks": ["go vet ./...", "go test ./..."]
+      "checks": ["verstak -gofmt", "go vet ./...", "go test ./..."]
     }
   },
   "deny": ["F:/persona-agent", "F:/unionclef"]

@@ -16,9 +16,12 @@ FROM golang:1.27.1-trixie
 COPY --from=codex --chmod=0755 bin/codex bin/codex-code-mode-host codex-path/rg /usr/local/bin/
 COPY --from=build /out/ /usr/local/bin/
 # The agent's user owns /work: a fresh volume mounted there takes this owner.
+# codex runs commands in a login shell (bash -lc), and Debian's /etc/profile resets PATH: Go
+# goes back on it from profile.d, which /etc/profile reads after.
 RUN useradd --uid 10001 --create-home --shell /bin/bash agent \
  && mkdir -p /work && chown agent:agent /work \
- && git config --system safe.directory '*'
+ && git config --system safe.directory '*' \
+ && echo 'export PATH=/usr/local/go/bin:/go/bin:$PATH' > /etc/profile.d/go.sh
 USER 10001
 ENV HOME=/home/agent GOTOOLCHAIN=local GOPROXY=off GOFLAGS=-mod=readonly \
     GOCACHE=/work/cache/go-build CODEX_HOME=/work/codex

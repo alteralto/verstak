@@ -251,7 +251,7 @@ impl eframe::App for Panel {
                 ui.add_space(16.0);
                 if ui
                     .add_enabled(free && scan.docker && !any_running, egui::Button::new("Проверить изоляцию"))
-                    .on_hover_text("9 проверок изнутри контейнера, собранного как для тикета: нет root, дисков, папок хоста, выхода в сеть мимо прокси")
+                    .on_hover_text("10 проверок изнутри контейнера, собранного как для тикета: нет root, дисков, папок хоста, выхода в сеть мимо прокси")
                     .clicked()
                 {
                     let (exe, cfg, root, shared) =

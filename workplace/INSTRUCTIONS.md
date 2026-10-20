@@ -27,8 +27,8 @@ from the real repo, not from this clone: a mistake here cannot break the run you
 - Write like the code around you: its naming, idiom and comment density. Keep the change small.
 - A bug gets a test that fails without your fix. `internal/job` tests the whole loop with a fake
   agent on a throwaway repo; use that pattern rather than new mocks.
-- Run the checks yourself before you finish: `go vet ./...` and `go test ./...`. The workbench
-  runs them again and believes only its own run.
+- Run the checks yourself before you finish: `gofmt -l .` (must print nothing), `go vet ./...`
+  and `go test ./...`. The workbench runs them again and believes only its own run.
 - Never stop to ask. When there is a fork, choose, and say what you chose and why.
 - Keep running notes for a later round in `NOTES.md` next to this file (short: what you found,
   what you tried, what is left).

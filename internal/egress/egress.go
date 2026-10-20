@@ -20,8 +20,12 @@ type Proxy struct {
 	Allow []string
 	Port  string // the only port a tunnel may reach; "" means 443
 	Log   *slog.Logger
-	// Dial opens the upstream connection; nil dials the network.
+	// Dial opens the upstream connection; nil dials the network, names resolved by DNS (below).
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
+	// DNS servers (host:port) to ask directly; nil uses the system's. Docker's embedded resolver
+	// now and then answers "server misbehaving", hence the retries; public servers asked
+	// directly from Docker Desktop do not answer at all, hence the system's by default.
+	DNS []string
 }
 
 // Allowed: a host name (not an IP address, which would skip the list) on the list.
@@ -65,10 +69,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	dial := p.Dial
 	if dial == nil {
-		d := net.Dialer{Timeout: 10 * time.Second}
+		d := net.Dialer{Timeout: 10 * time.Second, Resolver: p.resolver()}
 		dial = d.DialContext
 	}
-	up, err := dial(r.Context(), "tcp", r.Host)
+	var up net.Conn
+	for try := 0; try < 3; try++ { // a lost DNS answer is worth another go
+		if up, err = dial(r.Context(), "tcp", r.Host); err == nil || r.Context().Err() != nil {
+			break
+		}
+		time.Sleep(time.Duration(300*(try+1)) * time.Millisecond)
+	}
 	if err != nil {
 		log.Warn("upstream", "host", r.Host, "err", err)
 		http.Error(w, "upstream unreachable", http.StatusBadGateway)
@@ -102,6 +112,23 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 	up.Close()
 	down.Close()
+}
+
+// resolver asks p.DNS in turn; nil when there are none.
+func (p *Proxy) resolver() *net.Resolver {
+	if len(p.DNS) == 0 {
+		return nil
+	}
+	var n int
+	var mu sync.Mutex
+	return &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		mu.Lock()
+		server := p.DNS[n%len(p.DNS)]
+		n++
+		mu.Unlock()
+		var d net.Dialer
+		return d.DialContext(ctx, network, server)
+	}}
 }
 
 func closeWrite(c net.Conn) {

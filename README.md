@@ -41,8 +41,9 @@ flowchart LR
 
 ```
 cp verstak.example.json verstak.json        # пути, модель, docker.auth — логин агента
-# Linux-бинарь Codex из релиза openai/codex (проверить sha256) — в отдельную папку
-docker build --build-context codex=<папка с codex-x86_64-unknown-linux-musl>   -t verstak-agent:latest -f docker/Dockerfile .
+# из релиза openai/codex: codex-package-x86_64-unknown-linux-musl.tar.gz (сверить sha256),
+# из него bin/codex, bin/codex-code-mode-host и codex-path/rg — в отдельную папку
+docker build --build-context codex=<эта папка> -t verstak-agent:latest -f docker/Dockerfile .
 go build -o bin/verstak.exe ./cmd/verstak
 bin/verstak.exe -probe                      # изоляция: 9 проверок изнутри контейнера
 bin/verstak.exe -target verstak tickets/example-own-tests.md

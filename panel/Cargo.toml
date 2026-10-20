@@ -1,0 +1,13 @@
+[package]
+name = "verstak-panel"
+version = "0.1.0"
+edition = "2024"
+description = "Control panel for the Verstak workbench: tickets, their progress, results, isolation"
+
+[profile.release]
+opt-level = 2
+strip = true
+
+[dependencies]
+eframe = "0.36.2"
+serde_json = "1.0.149"

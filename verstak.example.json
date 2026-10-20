@@ -1,0 +1,17 @@
+{
+  "work": "F:/verstak-work",
+  "rounds": 2,
+  "codex": {
+    "bin": "",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "network": false
+  },
+  "targets": {
+    "persona-agent": {
+      "path": "F:/persona-agent",
+      "base": "main",
+      "checks": ["go vet ./...", "go test ./..."]
+    }
+  }
+}

@@ -49,13 +49,14 @@ type Runner interface {
 	Run(ctx context.Context, j Job) (Result, error)
 }
 
-// Codex runs `codex exec` on this machine in its workspace-write sandbox: it writes only inside
-// the job's folder.
+// Codex runs `codex exec`. On this machine its own workspace-write sandbox keeps writes inside
+// the job's folder; in the agent's container the container is the sandbox (danger-full-access).
 type Codex struct {
 	Bin     string // "" finds one (FindCodex)
 	Model   string
 	Effort  string // model_reasoning_effort
 	Network bool   // let the agent's commands reach the network
+	Sandbox string // codex sandbox_mode; "" is workspace-write
 }
 
 func (c Codex) Run(ctx context.Context, j Job) (Result, error) {
@@ -71,8 +72,12 @@ func (c Codex) Run(ctx context.Context, j Job) (Result, error) {
 	if j.Session != "" {
 		args = append(args, "resume")
 	}
+	sandbox := c.Sandbox
+	if sandbox == "" {
+		sandbox = "workspace-write"
+	}
 	args = append(args, "--json", "--skip-git-repo-check", "-o", j.Last,
-		"-c", `sandbox_mode="workspace-write"`)
+		"-c", fmt.Sprintf("sandbox_mode=%q", sandbox))
 	if c.Model != "" {
 		args = append(args, "-m", c.Model)
 	}

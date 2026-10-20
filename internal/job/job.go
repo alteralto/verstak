@@ -42,6 +42,8 @@ type Target struct {
 	Path   string   `json:"path"`
 	Base   string   `json:"base"`
 	Checks []string `json:"checks"`
+	// Author of the commits; empty is the committer configured in Path.
+	Author workspace.Identity `json:"author"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -81,26 +83,26 @@ type Report struct {
 	Took    time.Duration
 	Dir     string
 	Branch  string
+	Base    string // the commit the branch started from
+	Fetch   string // how the developer takes the branch; "" is a fetch from Dir
 	Err     string
 }
 
 // Run works one ticket on target with r. The report is also written to the workspace.
 func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runner.Runner) (Report, error) {
 	start := time.Now()
-	tg, ok := cfg.Targets[name]
-	if !ok {
-		return Report{}, fmt.Errorf("unknown target %q", name)
-	}
-	if d := denied(cfg.Deny, tg.Path); d != "" {
-		return Report{}, fmt.Errorf("target %q is %s, which is on the deny list", name, d)
+	tg, err := cfg.Target(name)
+	if err != nil {
+		return Report{}, err
 	}
 	rep := Report{Ticket: tk, Target: name, Dir: filepath.Join(cfg.Work, tk.ID), Branch: "verstak/" + tk.ID}
 
 	t0 := time.Now()
-	ws, err := workspace.Prepare(ctx, tg.Path, tg.Base, rep.Dir, rep.Branch)
+	ws, err := workspace.Prepare(ctx, tg.Path, tg.Base, rep.Dir, rep.Branch, tg.Author)
 	if err != nil {
 		return rep, err
 	}
+	rep.Base = ws.Base
 	tf, err := os.Create(ws.Own("trace.jsonl"))
 	if err != nil {
 		return rep, err
@@ -172,6 +174,18 @@ func Run(ctx context.Context, cfg Config, name string, tk ticket.Ticket, r runne
 	rep.Took = time.Since(start)
 	tr.Span("ticket", start, nil, "status", rep.Status, "rounds", rep.Rounds)
 	return rep, os.WriteFile(ws.Own("REPORT.md"), []byte(rep.Markdown()), 0o644)
+}
+
+// Target is the named target, unless it is on the deny list.
+func (c Config) Target(name string) (Target, error) {
+	tg, ok := c.Targets[name]
+	if !ok {
+		return tg, fmt.Errorf("unknown target %q", name)
+	}
+	if d := denied(c.Deny, tg.Path); d != "" {
+		return tg, fmt.Errorf("target %q is %s, which is on the deny list", name, d)
+	}
+	return tg, nil
 }
 
 // denied is the entry of deny that path is, or lies inside; "" when none. Paths compare
@@ -263,8 +277,11 @@ func (r Report) Markdown() string {
 		fmt.Fprintf(&b, "\n## Changes\n\n```\n%s\n```\n", r.Stat)
 	}
 	if r.Commits != "" {
-		fmt.Fprintf(&b, "\nTake it into the target:\n\n```\ngit fetch %s %s\ngit log -p FETCH_HEAD\n```\n",
-			filepath.ToSlash(r.Dir), r.Branch)
+		fetch := r.Fetch
+		if fetch == "" {
+			fetch = fmt.Sprintf("git fetch %s %s", filepath.ToSlash(r.Dir), r.Branch)
+		}
+		fmt.Fprintf(&b, "\nTake it into the target:\n\n```\n%s\ngit log -p FETCH_HEAD\n```\n", fetch)
 	}
 	if r.Summary != "" {
 		fmt.Fprintf(&b, "\n## The agent says\n\n%s\n", r.Summary)

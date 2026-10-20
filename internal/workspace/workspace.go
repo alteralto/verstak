@@ -24,9 +24,23 @@ type Workspace struct {
 	Base   string // the commit the branch started from
 }
 
+// Identity is who commits; the developer, as in the target.
+type Identity struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// IdentityOf is the committer configured in repo.
+func IdentityOf(ctx context.Context, repo string) Identity {
+	name, _ := git(ctx, repo, "config", "user.name")
+	email, _ := git(ctx, repo, "config", "user.email")
+	return Identity{Name: name, Email: email}
+}
+
 // Prepare clones the committed state of base from src into path and starts branch there. Work
-// in the target's folder that is not committed stays out of it.
-func Prepare(ctx context.Context, src, base, path, branch string) (*Workspace, error) {
+// in the target's folder that is not committed stays out of it. Commits are who's; an empty
+// one is the committer of src (a bundle has none: pass it).
+func Prepare(ctx context.Context, src, base, path, branch string, who Identity) (*Workspace, error) {
 	if _, err := os.Stat(path); err == nil {
 		return nil, fmt.Errorf("workspace %s already exists", path)
 	}
@@ -44,11 +58,14 @@ func Prepare(ctx context.Context, src, base, path, branch string) (*Workspace, e
 		{"checkout", "--quiet", "-b", branch},
 		{"remote", "remove", "origin"}, // a push from here has nowhere to go
 	}
-	// Commits in the clone are the developer's, as in the target.
-	for _, k := range []string{"user.name", "user.email"} {
-		if v, err := git(ctx, src, "config", k); err == nil && v != "" {
-			steps = append(steps, []string{"config", k, v})
-		}
+	if who == (Identity{}) {
+		who = IdentityOf(ctx, src)
+	}
+	if who.Name != "" {
+		steps = append(steps, []string{"config", "user.name", who.Name})
+	}
+	if who.Email != "" {
+		steps = append(steps, []string{"config", "user.email", who.Email})
 	}
 	for _, s := range steps {
 		if _, err := git(ctx, path, s...); err != nil {
@@ -100,6 +117,40 @@ func (w *Workspace) Commit(ctx context.Context, msg string) (bool, error) {
 	}
 	_, err := git(ctx, w.Path, "commit", "--quiet", "-m", msg)
 	return err == nil, err
+}
+
+// Bundle writes the ticket's branch, with its history, to a git bundle file: the only way a
+// result leaves the agent's container.
+func (w *Workspace) Bundle(ctx context.Context, file string) error {
+	_, err := git(ctx, w.Path, "bundle", "create", file, w.Branch)
+	return err
+}
+
+// BundleOf writes ref of repo, with its history, to a bundle: how the target enters the agent's
+// container. It only reads repo.
+func BundleOf(ctx context.Context, repo, ref, file string) error {
+	_, err := git(ctx, repo, "bundle", "create", file, ref)
+	return err
+}
+
+// Fetch takes branch from a result bundle into repo (a bare inbox repo, made when missing). A
+// bundle carries objects and refs only, never config or hooks.
+func Fetch(ctx context.Context, repo, bundle, branch string) error {
+	if _, err := os.Stat(repo); err != nil {
+		if _, err := git(ctx, "", "init", "--quiet", "--bare", repo); err != nil {
+			return err
+		}
+	}
+	_, err := git(ctx, repo, "fetch", "--quiet", bundle, branch+":"+branch)
+	return err
+}
+
+// Diff is everything changed since the base, the working tree included, as a patch.
+func (w *Workspace) Diff(ctx context.Context) (string, error) {
+	if _, err := git(ctx, w.Path, "add", "--all"); err != nil {
+		return "", err
+	}
+	return git(ctx, w.Path, "diff", "--cached", w.Base)
 }
 
 // Commits since the base, one line each.

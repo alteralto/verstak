@@ -17,7 +17,26 @@
 Поэтому **живые запуски — только в изоляции**. Запуск на хосте оставлен для отладки самого
 верстака за флагом `-unsafe-host`. Хуки отключены во всех наших git-командах, на это есть тест.
 
-## Уровень 1: Docker (следующий шаг)
+## Уровень 1: Docker (сделано 21.10.2026)
+
+`verstak -probe` проверяет изоляцию изнутри контейнера, собранного так же, как для тикета:
+
+```
+pass  not root                                 uid 10001
+pass  no capabilities                          CapBnd 0000000000000000
+pass  no new privileges                        NoNewPrivs 1
+pass  root filesystem read-only                open /home/agent/probe-write: read-only file system
+pass  no block devices (disks, partitions)     []
+pass  no host drives, no Docker socket         []
+pass  no direct way out                        dial 1.1.1.1:443: connect: network is unreachable
+pass  proxy refuses other hosts                example.com: 403
+pass  proxy lets the model through             chatgpt.com: 200
+```
+
+Тот же образ без флагов проваливает 7 проверок из 9, то есть проверка их действительно различает.
+Первый прогон тикета без логина: Codex дошёл до `api.openai.com` через прокси и получил 401,
+запросы к `github.com` (проверка обновлений) прокси отклонил. После прогона не остаётся ни
+контейнера, ни тома.
 
 Docker Desktop уже стоит, работает на WSL2. Контейнеры живут во внутренней виртуальной машине,
 диски Windows им не видны, если их не смонтировать.

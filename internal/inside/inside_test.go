@@ -86,7 +86,9 @@ func TestDoneLeavesABundle(t *testing.T) {
 
 func TestRedLeavesAPatchNotABundle(t *testing.T) {
 	in, work, out := handOver(t), t.TempDir(), t.TempDir()
-	rep, err := inside.Run(context.Background(), in, work, out, "", func(inside.Spec) runner.Runner { return agent{} })
+	os.Remove(filepath.Join(in, inside.AuthFile)) // and no login: codex still gets a home
+	home := filepath.Join(t.TempDir(), "codex")
+	rep, err := inside.Run(context.Background(), in, work, out, home, func(inside.Spec) runner.Runner { return agent{} })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +97,9 @@ func TestRedLeavesAPatchNotABundle(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, inside.ResultFile)); err == nil {
 		t.Error("a bundle of red work")
+	}
+	if st, err := os.Stat(home); err != nil || !st.IsDir() {
+		t.Errorf("no codex home without a login: %v", err)
 	}
 	d, err := os.ReadFile(filepath.Join(out, inside.DiffFile))
 	if err != nil || !strings.Contains(string(d), "+func Add(a, b int) int { return a * b }") {

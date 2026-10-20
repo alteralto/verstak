@@ -36,22 +36,26 @@ flowchart LR
 
 ## Запуск
 
-**Живые запуски — только в изоляции** (Docker, затем отдельная машина): тесты, которые пишет
-агент, исполняются при проверках, и на хосте у них были бы права пользователя. Подробно —
-[docs/security.md](docs/security.md). Пока песочницы нет, запуск без флага `-unsafe-host`
-отказывается работать. Этот флаг только для отладки самого верстака.
+Каждый тикет работает в своём контейнере Docker. Папки хоста туда не монтируются, наружу
+открыт только путь к OpenAI через прокси. Подробно — [docs/security.md](docs/security.md).
 
 ```
-cp verstak.example.json verstak.json   # пути и модель под себя
+cp verstak.example.json verstak.json        # пути, модель, docker.auth — логин агента
+# Linux-бинарь Codex из релиза openai/codex (проверить sha256) — в отдельную папку
+docker build --build-context codex=<папка с codex-x86_64-unknown-linux-musl>   -t verstak-agent:latest -f docker/Dockerfile .
 go build -o bin/verstak.exe ./cmd/verstak
+bin/verstak.exe -probe                      # изоляция: 9 проверок изнутри контейнера
 bin/verstak.exe -target verstak tickets/example-own-tests.md
 ```
 
-Отчёт печатается в конце. Забрать ветку можно командой из отчёта: `git fetch <клон>
-verstak/<id>`.
+Готовая ветка попадает в репозиторий-приёмник `<work>/inbox.git`, команда `git fetch` — в
+отчёте. Красная работа приходит патчем `out/changes.diff`. Журнал прокси (`egress.jsonl`)
+показывает, куда агент пытался выйти.
 
-Codex берётся из приложения Codex (самый свежий `codex.exe`), иначе из PATH. Конкретный путь
-задаётся полем `codex.bin`.
+Образ собирается из основного репозитория. Правки агента попадут в работу, только когда
+ветку заберут и образ пересоберут.
+
+`-unsafe-host` запускает агента прямо на этой машине. Только для отладки самого верстака.
 
 ## Дальше
 

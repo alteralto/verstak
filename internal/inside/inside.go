@@ -55,12 +55,15 @@ func Run(ctx context.Context, in, work, out, codexHome string, agent func(Spec) 
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return job.Report{}, err
 	}
-	if auth, err := os.ReadFile(filepath.Join(in, AuthFile)); err == nil && codexHome != "" {
+	if codexHome != "" {
+		// Codex wants its home to exist, with a login in it or not.
 		if err := os.MkdirAll(codexHome, 0o700); err != nil {
 			return job.Report{}, err
 		}
-		if err := os.WriteFile(filepath.Join(codexHome, AuthFile), auth, 0o600); err != nil {
-			return job.Report{}, err
+		if auth, err := os.ReadFile(filepath.Join(in, AuthFile)); err == nil {
+			if err := os.WriteFile(filepath.Join(codexHome, AuthFile), auth, 0o600); err != nil {
+				return job.Report{}, err
+			}
 		}
 	}
 	cfg := job.Config{

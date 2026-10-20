@@ -318,15 +318,23 @@ impl eframe::App for Panel {
                 for t in &scan.tickets {
                     let (c, word) = status_look(&t.status);
                     let picked = self.selected.as_deref() == Some(t.id.as_str());
-                    let text = RichText::new(format!("{word:<10} {}", t.title));
-                    let resp = ui.add(egui::Button::selectable(picked, text.color(c)).wrap_mode(egui::TextWrapMode::Truncate));
+                    let resp = ui.add(egui::Button::selectable(picked, RichText::new(&t.title)).wrap_mode(egui::TextWrapMode::Truncate));
                     if resp.on_hover_text(&t.id).clicked() {
                         self.selected = Some(t.id.clone());
                     }
+                    ui.horizontal(|ui| {
+                        ui.add_space(6.0);
+                        ui.label(RichText::new(word).color(c).small());
+                        ui.label(RichText::new(when(&t.id)).small().weak());
+                    });
+                    ui.add_space(4.0);
                 }
             });
         });
 
+        if self.selected.is_none() {
+            self.selected = scan.tickets.first().map(|t| t.id.clone()); // the newest
+        }
         let current = self.selected.as_ref().and_then(|id| scan.tickets.iter().find(|t| &t.id == id)).cloned();
         egui::CentralPanel::default().show(ui, |ui| {
             let Some(t) = current else {
@@ -755,6 +763,15 @@ fn clock(secs: u64) -> String {
     }
 }
 
+/// "20261021-024310-slug" -> "21.10 02:43".
+fn when(id: &str) -> String {
+    let b = id.as_bytes();
+    if b.len() < 13 || b[8] != b'-' || !b[..8].iter().chain(&b[9..13]).all(u8::is_ascii_digit) {
+        return String::new();
+    }
+    format!("{}.{} {}:{}", &id[6..8], &id[4..6], &id[9..11], &id[11..13])
+}
+
 /// A name for a new ticket's file, sortable by time.
 fn now_stamp() -> String {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
@@ -842,6 +859,13 @@ garbage"#;
         let t = ticket_from(spec, Some(r#"{"Status":"failed","Branch":"verstak/x","Commits":""}"#));
         assert_eq!(t.branch, "");
         assert_eq!(ticket_from("not json", None).title, "(без названия)");
+    }
+
+    #[test]
+    fn when_reads_the_id() {
+        assert_eq!(when("20261021-024310-u-paketov"), "21.10 02:43");
+        assert_eq!(when("ticket-123"), "");
+        assert_eq!(when("2026102x-024310-a"), "");
     }
 
     #[test]

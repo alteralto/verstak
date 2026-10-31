@@ -1,5 +1,5 @@
 {
-  "work": "F:/verstak-work",
+  "work": "C:/src/verstak-work",
   "rounds": 2,
   "codex": {
     "bin": "",
@@ -9,10 +9,10 @@
   },
   "targets": {
     "verstak": {
-      "path": "F:/verstak",
+      "path": "C:/src/verstak",
       "base": "main",
       "checks": ["verstak -gofmt", "go vet ./...", "go test ./..."]
     }
   },
-  "deny": ["F:/persona-agent", "F:/unionclef"]
+  "deny": ["C:/src/persona-agent", "C:/src/unionclef"]
 }

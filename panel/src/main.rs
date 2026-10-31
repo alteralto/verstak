@@ -721,7 +721,7 @@ fn git_out(repo: &Path, args: &[&str]) -> String {
 /// verstak.json: the work folder and the target names.
 fn read_config(path: &Path) -> (PathBuf, Vec<String>) {
     let v: Value = fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(Value::Null);
-    let work = v.get("work").and_then(Value::as_str).map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"F:\verstak-work"));
+    let work = v.get("work").and_then(Value::as_str).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("verstak-work"));
     let mut targets: Vec<String> = v.get("targets").and_then(Value::as_object).map(|o| o.keys().cloned().collect()).unwrap_or_default();
     targets.sort();
     (work, targets)
@@ -735,7 +735,7 @@ fn find_root() -> PathBuf {
             }
         }
     }
-    PathBuf::from(r"F:\verstak")
+    PathBuf::from(".")
 }
 
 fn tail(path: &Path, max: u64) -> String {
